@@ -53,14 +53,11 @@ jobs:
           echo "=== 3. 布局重构: 侧边栏紧凑图标化 (72dp) + 16:9 大卡片 + 16dp圆角 ==="
           cat << 'EOF' >> smarttubetv/src/main/res/values/dimens.xml
           <resources>
-              <!-- 官方极窄图标导航列 (Icon Rail) -->
               <dimen name="lb_browse_headers_width">72dp</dimen>
               <dimen name="lb_browse_rows_margin_start">88dp</dimen>
               <dimen name="lb_browse_rows_margin_top">115dp</dimen>
-              <!-- 官方 16:9 大尺寸视频卡片 -->
               <dimen name="card_width">260dp</dimen>
               <dimen name="card_height">146dp</dimen>
-              <!-- 官方 16dp 大圆角 -->
               <dimen name="lb_rounded_rect_corner_radius">16dp</dimen>
               <dimen name="card_corner_radius">16dp</dimen>
           </resources>
@@ -82,21 +79,24 @@ jobs:
           sed -i 's/@color\/card_selected_background_white/@drawable\/card_selected_stroke/g' smarttubetv/src/main/res/values/styles.xml
           sed -i 's/@color\/card_selected_background_white_grey/@drawable\/card_selected_stroke/g' smarttubetv/src/main/res/values/styles.xml
 
-          echo "=== 5. 生成官方标准的 ▶ YouTube 品牌大标与图标 ==="
-          convert -size 400x120 xc:none \
+          echo "=== 5. 自动安装工具并生成官方标准的 ▶ YouTube 品牌大标与图标 ==="
+          sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+          CONVERT_CMD=$(command -v convert || command -v magick)
+
+          $CONVERT_CMD -size 400x120 xc:none \
             -fill '#FF0000' -draw 'roundrectangle 10,20 110,100 24,24' \
             -fill white -draw 'polygon 48,42 48,78 78,60' \
-            -fill white -pointsize 58 -font DejaVu-Sans-Bold -draw 'text 125,80 "YouTube"' \
+            -fill white -pointsize 58 -draw 'text 125,80 "YouTube"' \
             youtube_official_logo.png
 
           find . -name "*app_logo*.png" -o -name "*badge*.png" | while read -r p; do
             cp youtube_official_logo.png "$p" || true
           done
 
-          convert -size 640x360 xc:'#0F0F0F' \
+          $CONVERT_CMD -size 640x360 xc:'#0F0F0F' \
             -fill '#FF0000' -draw 'roundrectangle 130,130 250,230 28,28' \
             -fill white -draw 'polygon 175,155 175,205 215,180' \
-            -fill white -pointsize 70 -font DejaVu-Sans-Bold -draw 'text 275,202 "YouTube"' \
+            -fill white -pointsize 70 -draw 'text 275,202 "YouTube"' \
             youtube_tv_banner.png
 
           find . -name "*banner*.png" -o -name "*app_banner*.png" | while read -r p; do
@@ -104,7 +104,7 @@ jobs:
           done
 
           find . -name "*app_icon*.png" | while read -r p; do
-            convert -size 192x192 xc:none \
+            $CONVERT_CMD -size 192x192 xc:none \
               -fill '#FF0000' -draw 'roundrectangle 10,10 182,182 40,40' \
               -fill white -draw 'polygon 76,61 76,131 136,96' "$p" || true
           done
@@ -158,13 +158,11 @@ jobs:
           name: 官方 YouTube 电视版 1比1 还原定制版 ${{ steps.prepare_apk.outputs.release_tag }}
           body: |
             ## 📺 官方 YouTube 电视版 1:1 最大化还原版
-
-            ### 🎯 依照官方 TV 实测截图深度重构：
-            - **白色圆角高亮边框**：选中卡片带有标准的 **3.5dp 纯白圆角描边** 与 16dp 大圆角。
-            - **极窄纯图标侧边栏**：左侧压缩为 72dp 纯图标 Rail 模式，内容起始左移对齐。
-            - **16:9 影院级大卡片**：卡片比例调整为 260dp x 146dp，标题默认双行粗体。
-            - **右上角官方标识**：彻底干掉 S-beta 小电视，替换为官方标准的 `▶ YouTube` 红白大标。
-            - **沉浸底色**：全界面锁定 `#0F0F0F` 官方极简深黑。
+            - **白色圆角高亮边框**：选中卡片 3.5dp 纯白圆角描边 + 16dp 大圆角
+            - **极窄纯图标侧边栏**：左侧 72dp 极窄图标 Rail 模式
+            - **16:9 大卡片**：260dp x 146dp，默认双行粗体标题
+            - **右上角官方标识**：官方 ▶ YouTube 红白大标
+            - **沉浸底色**：全界面锁定 #0F0F0F 官方极简深黑
           files: ${{ steps.prepare_apk.outputs.final_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

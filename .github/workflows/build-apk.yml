@@ -1,7 +1,7 @@
 name: Build YouTube TV Official UI APK
 
 on:
-  workflow_dispatch: # 网页上手动点击按钮一键打包
+  workflow_dispatch:
   push:
     branches: [ master, main ]
     paths-ignore:
@@ -30,30 +30,24 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: 🎨 应用 YouTube TV 官方视觉定制 (Scheme A)
+      - name: 🎨 全局清除所有 SmartTube 痕迹，换成官方 YouTube
         run: |
-          echo "=== 1. 修改应用名称为 YouTube ==="
-          sed -i 's/<string translatable="false" name="app_name">.*<\/string>/<string translatable="false" name="app_name"><![CDATA[YouTube]]><\/string>/g' smarttubetv/src/main/res/values/strings.xml
-          sed -i 's/<string translatable="false" name="browse_title">.*<\/string>/<string translatable="false" name="browse_title"><![CDATA[YouTube]]><\/string>/g' smarttubetv/src/main/res/values/strings.xml
+          echo "=== 1. 全局暴力替换所有文字为 YouTube ==="
+          find . -name "strings.xml" -exec sed -i 's/SmartTube beta/YouTube/g' {} +
+          find . -name "strings.xml" -exec sed -i 's/SmartTube/YouTube/g' {} +
 
-          echo "=== 2. 注入官方 YouTube TV 纯黑配色 (#0F0F0F) ==="
-          sed -i 's/<color name="fastlane_background">.*<\/color>/<color name="fastlane_background">#0F0F0F<\/color>/g' smarttubetv/src/main/res/values/colors.xml
-          sed -i 's/<color name="fastlane_background_dark">.*<\/color>/<color name="fastlane_background_dark">#0F0F0F<\/color>/g' smarttubetv/src/main/res/values/colors.xml
-          sed -i 's/<color name="default_background_gradient_start">.*<\/color>/<color name="default_background_gradient_start">#0F0F0F<\/color>/g' smarttubetv/src/main/res/values/colors.xml
-          sed -i 's/<color name="default_background_gradient_end">.*<\/color>/<color name="default_background_gradient_end">#0F0F0F<\/color>/g' smarttubetv/src/main/res/values/colors.xml
-          sed -i 's/<color name="search_opaque">.*<\/color>/<color name="search_opaque">#FF0000<\/color>/g' smarttubetv/src/main/res/values/colors.xml
+          echo "=== 2. 全局换用官方 YouTube TV 纯黑配色 (#0F0F0F) ==="
+          find . -name "colors.xml" -exec sed -i 's/<color name="fastlane_background">.*<\/color>/<color name="fastlane_background">#0F0F0F<\/color>/g' {} +
+          find . -name "colors.xml" -exec sed -i 's/<color name="fastlane_background_dark">.*<\/color>/<color name="fastlane_background_dark">#0F0F0F<\/color>/g' {} +
+          find . -name "colors.xml" -exec sed -i 's/<color name="default_background_gradient_start">.*<\/color>/<color name="default_background_gradient_start">#0F0F0F<\/color>/g' {} +
+          find . -name "colors.xml" -exec sed -i 's/<color name="default_background_gradient_end">.*<\/color>/<color name="default_background_gradient_end">#0F0F0F<\/color>/g' {} +
 
-          echo "=== 3. 自动生成官方红白 TV 海报与应用图标 ==="
-          find smarttubetv/src/main/res -name "app_banner.png" | while read -r f; do
-            convert -size 640x360 xc:'#0F0F0F' -fill '#FF0000' -draw 'roundrectangle 270,145 370,215 16,16' -fill white -draw 'polygon 308,165 308,195 338,180' "$f" || true
+          echo "=== 3. 彻底抹杀所有的 S-beta 电视图标，全盘替换为官方红白标 ==="
+          find . -name "*app_icon*.png" -o -name "*app_logo*.png" -o -name "*banner*.png" | while read -r img; do
+            convert -size 640x360 xc:'#0F0F0F' -fill '#FF0000' -draw 'roundrectangle 270,145 370,215 16,16' -fill white -draw 'polygon 308,165 308,195 338,180' "$img" || true
           done
 
-          find smarttubetv/src/main/res -name "app_icon.png" -o -name "app_logo.png" | while read -r f; do
-            convert -size 192x192 xc:none -fill '#FF0000' -draw 'roundrectangle 10,10 182,182 40,40' -fill white -draw 'polygon 76,61 76,131 136,96' "$f" || true
-          done
-          echo "官方视觉素材替换成功！"
-
-      - name: 🔑 自动配置发布证书与签名
+      - name: 🔑 自动签名配置
         run: |
           keytool -genkey -v \
             -keystore key.jks \
@@ -70,45 +64,35 @@ jobs:
           echo "keyPassword=123456" >> keystore.properties
           echo "storeFile=${GITHUB_WORKSPACE}/key.jks" >> keystore.properties
 
-      - name: 赋予 gradlew 执行权限
+      - name: 赋予执行权限
         run: chmod +x ./gradlew
 
-      - name: 🚀 编译 Release 生产安装包
+      - name: 🚀 编译真正的 YouTube TV APK
         run: |
           ./gradlew clean assembleStbetaRelease --no-daemon --stacktrace || ./gradlew clean assembleRelease --no-daemon --stacktrace
 
-      - name: 整理并重命名 APK
+      - name: 收集输出文件
         id: prepare_apk
         run: |
           APK_PATH=$(find smarttubetv/build/outputs/apk -name "*.apk" | head -n 1)
           if [ -z "$APK_PATH" ]; then
             APK_PATH=$(find . -name "*.apk" | head -n 1)
           fi
-          echo "Found APK: $APK_PATH"
-
           DATE_TAG=$(date +"%Y%m%d_%H%M")
           FINAL_NAME="YouTube-TV-OfficialUI-v${DATE_TAG}.apk"
           cp "$APK_PATH" "./$FINAL_NAME"
           echo "final_path=./$FINAL_NAME" >> $GITHUB_OUTPUT
           echo "release_tag=v${DATE_TAG}" >> $GITHUB_OUTPUT
 
-      - name: 上传构建文件至 GitHub Actions Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: YouTube-TV-OfficialUI-APK
-          path: ${{ steps.prepare_apk.outputs.final_path }}
-          retention-days: 14
-
-      - name: 📦 发布到 Releases 供直接下载
+      - name: 📦 发布到 Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.prepare_apk.outputs.release_tag }}
-          name: YouTube TV 专属定制版 ${{ steps.prepare_apk.outputs.release_tag }}
+          name: 真正的 YouTube TV 官方高仿定制版 ${{ steps.prepare_apk.outputs.release_tag }}
           body: |
-            ## 📺 YouTube TV 专属官方高仿定制版 (SmartTube 内核)
-            - **官方视觉**：背景全面采用 YouTube TV 标志性深黑配色（#0F0F0F）
-            - **品牌外观**：应用名称正式显示为 **YouTube**，含官方 TV 宽屏海报与方形图标
-            - **功能保留**：免广告拦截 + SponsorBlock 自动跳过 + 4K 解码
+            ## 📺 纯正官方 YouTube TV 定制版
+            - 彻底剔除所有 SmartTube / S-beta 标识与小电视图标
+            - 全盘换用官方 YouTube 播放器标识与深黑底色
           files: ${{ steps.prepare_apk.outputs.final_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,71 @@
+name: Build Custom YouTube TV APK
+
+on:
+  workflow_dispatch: # 支持在 GitHub 网页上手动点击按钮一键打包
+  push:
+    branches: [ master, main ]
+    paths-ignore:
+      - '**.md'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 编译专属 YouTube TV APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 检出仓库源码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 配置 JDK 17 开发环境
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: 赋予 gradlew 执行权限
+        run: chmod +x ./gradlew
+
+      - name: 编译 APK 安装包
+        run: |
+          ./gradlew assembleRelease --no-daemon --stacktrace || ./gradlew assembleBeta --no-daemon --stacktrace
+
+      - name: 查找并重命名 APK 文件
+        id: find_apk
+        run: |
+          APK_PATH=$(find . -name "*release*.apk" -o -name "*beta*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            APK_PATH=$(find . -name "*.apk" | head -n 1)
+          fi
+          DATE_TAG=$(date +"%Y%m%d_%H%M")
+          TARGET_NAME="YouTube-TV-OfficialUI-${DATE_TAG}.apk"
+          cp "$APK_PATH" "./$TARGET_NAME"
+          echo "apk_path=./$TARGET_NAME" >> $GITHUB_OUTPUT
+          echo "tag_name=v${DATE_TAG}" >> $GITHUB_OUTPUT
+
+      - name: 上传构建产物 (Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouTube-TV-OfficialUI-APK
+          path: ${{ steps.find_apk.outputs.apk_path }}
+          retention-days: 14
+
+      - name: 发布到 Releases (一键下载)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.find_apk.outputs.tag_name }}
+          name: YouTube TV 专属官方定制版 ${{ steps.find_apk.outputs.tag_name }}
+          body: |
+            ## 📺 YouTube TV 专属官方高仿定制版
+            - **视觉设计**：还原官方 YouTube 电视端极简深黑质感（#0F0F0F）
+            - **纯净大屏**：隐藏繁杂极客角标
+            - **功能保留**：免广告拦截 + SponsorBlock 自动跳过
+          files: ${{ steps.find_apk.outputs.apk_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

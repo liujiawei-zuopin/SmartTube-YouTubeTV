@@ -12,31 +12,31 @@ permissions:
 
 jobs:
   build:
-    name: 缂栬瘧涓撳睘 YouTube TV 瀹樻柟楂樹豢鐗?(1:1 鏈€澶у寲杩樺師)
+    name: Build YouTube TV Official UI APK
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
-      - name: 妫€鍑?SmartTube 婧愮爜
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: recursive
 
-      - name: 閰嶇疆 JDK 17
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: 馃帹 娣卞害閲嶅涓哄畼鏂?YouTube TV 1:1 鐣岄潰
+      - name: Transform UI to YouTube TV 1:1
         run: |
-          echo "=== 1. 搴旂敤鍚嶇О涓庢爣璇嗗彉鏇翠负 YouTube ==="
+          echo "=== 1. Replace application name with YouTube ==="
           find . -name "strings.xml" -exec sed -i 's/SmartTube beta/YouTube/g' {} +
           find . -name "strings.xml" -exec sed -i 's/SmartTube/YouTube/g' {} +
 
-          echo "=== 2. 閲嶅啓棰滆壊绯荤粺涓哄畼鏂规瀬鑷存繁榛?(#0F0F0F) ==="
+          echo "=== 2. Set colors to Official Dark #0F0F0F ==="
           find . -name "colors.xml" | while read -r f; do
             sed -i 's/<color name="fastlane_background">.*<\/color>/<color name="fastlane_background">#0F0F0F<\/color>/g' "$f"
             sed -i 's/<color name="fastlane_background_dark">.*<\/color>/<color name="fastlane_background_dark">#0F0F0F<\/color>/g' "$f"
@@ -50,23 +50,20 @@ jobs:
             sed -i 's/<color name="card_selected_background_white_grey">.*<\/color>/<color name="card_selected_background_white_grey">#FFFFFF<\/color>/g' "$f"
           done
 
-          echo "=== 3. 甯冨眬閲嶆瀯: 渚ц竟鏍忕揣鍑戝浘鏍囧寲 (72dp) + 16:9 澶у崱鐗?+ 16dp鍦嗚 ==="
+          echo "=== 3. Restructure layout: 72dp icon rail + 16:9 cards + 16dp rounded corners ==="
           cat << 'EOF' >> smarttubetv/src/main/res/values/dimens.xml
           <resources>
-              <!-- 瀹樻柟鏋佺獎鍥炬爣瀵艰埅鍒?(Icon Rail) -->
               <dimen name="lb_browse_headers_width">72dp</dimen>
               <dimen name="lb_browse_rows_margin_start">88dp</dimen>
               <dimen name="lb_browse_rows_margin_top">115dp</dimen>
-              <!-- 瀹樻柟 16:9 澶у昂瀵歌棰戝崱鐗?-->
               <dimen name="card_width">260dp</dimen>
               <dimen name="card_height">146dp</dimen>
-              <!-- 瀹樻柟 16dp 澶у渾瑙?-->
               <dimen name="lb_rounded_rect_corner_radius">16dp</dimen>
               <dimen name="card_corner_radius">16dp</dimen>
           </resources>
           EOF
 
-          echo "=== 4. 鏍稿績鐒︾偣鍔ㄦ晥: 娉ㄥ叆瀹樻柟 3.5dp 鐧借壊鑱氱劍杈规 (White Focus Border) ==="
+          echo "=== 4. Inject 3.5dp Solid White Focus Border ==="
           cat << 'EOF' > smarttubetv/src/main/res/drawable/card_selected_stroke.xml
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android"
@@ -82,7 +79,7 @@ jobs:
           sed -i 's/@color\/card_selected_background_white/@drawable\/card_selected_stroke/g' smarttubetv/src/main/res/values/styles.xml
           sed -i 's/@color\/card_selected_background_white_grey/@drawable\/card_selected_stroke/g' smarttubetv/src/main/res/values/styles.xml
 
-          echo "=== 5. 瀹夎 ImageMagick 骞剁敓鎴愬畼鏂规爣鍑嗙殑 鈻?YouTube 鍝佺墝澶ф爣涓庡浘鏍?==="
+          echo "=== 5. Install ImageMagick and generate Official YouTube branding ==="
           sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
           CONVERT_CMD=$(command -v convert || command -v magick)
 
@@ -112,12 +109,12 @@ jobs:
               -fill white -draw 'polygon 76,61 76,131 136,96' "$p" || true
           done
 
-          echo "=== 6. 榛樿鏍囬鏄剧ず 2 琛?(涓庡畼鏂瑰榻? ==="
+          echo "=== 6. Default to 2 lines for video titles ==="
           find . -name "MainUIData.java" -exec sed -i 's/mCardTitleLinesNum = Helpers.parseInt(split, 7, 1);/mCardTitleLinesNum = Helpers.parseInt(split, 7, 2);/g' {} +
 
-          echo "鉁?瀹樻柟 1:1 UI 瀹氬埗娉ㄥ叆瀹屾垚锛?
+          echo "=== Success ==="
 
-      - name: 馃攽 鑷姩绛惧悕閰嶇疆
+      - name: Configure Keystore
         run: |
           keytool -genkey -v \
             -keystore key.jks \
@@ -134,13 +131,14 @@ jobs:
           echo "keyPassword=123456" >> keystore.properties
           echo "storeFile=${GITHUB_WORKSPACE}/key.jks" >> keystore.properties
 
-      - name: 璧嬩簣鎵ц鏉冮檺
+      - name: Make Gradlew Executable
         run: chmod +x ./gradlew
 
-      - name: 馃殌 缂栬瘧鐢熶骇鍖?        run: |
+      - name: Assemble APK
+        run: |
           ./gradlew clean assembleStbetaRelease --no-daemon --stacktrace || ./gradlew clean assembleRelease --no-daemon --stacktrace
 
-      - name: 鏀堕泦杈撳嚭鏂囦欢
+      - name: Prepare APK
         id: prepare_apk
         run: |
           APK_PATH=$(find smarttubetv/build/outputs/apk -name "*.apk" | head -n 1)
@@ -153,13 +151,18 @@ jobs:
           echo "final_path=./$FINAL_NAME" >> $GITHUB_OUTPUT
           echo "release_tag=v${DATE_TAG}" >> $GITHUB_OUTPUT
 
-      - name: 馃摝 鍙戝竷鍒?Releases (涓€閿笅杞?
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.prepare_apk.outputs.release_tag }}
-          name: 瀹樻柟 YouTube 鐢佃鐗?1姣? 杩樺師瀹氬埗鐗?${{ steps.prepare_apk.outputs.release_tag }}
+          name: YouTube TV Official UI 1:1 Custom Build ${{ steps.prepare_apk.outputs.release_tag }}
           body: |
-            ## 馃摵 瀹樻柟 YouTube 鐢佃鐗?1:1 鏈€澶у寲杩樺師鐗?
-            ### 馃幆 渚濈収瀹樻柟 TV 瀹炴祴鎴浘娣卞害閲嶆瀯锛?            - **鐧借壊鍦嗚楂樹寒杈规**锛氶€変腑鍗＄墖甯︽湁鏍囧噯鐨?**3.5dp 绾櫧鍦嗚鎻忚竟** 涓?16dp 澶у渾瑙掋€?            - **鏋佺獎绾浘鏍囦晶杈规爮**锛氬乏渚у帇缂╀负 72dp 绾浘鏍?Rail 妯″紡锛屽唴瀹硅捣濮嬪乏绉诲榻愩€?            - **16:9 褰遍櫌绾уぇ鍗＄墖**锛氬崱鐗囨瘮渚嬭皟鏁翠负 260dp x 146dp锛屾爣棰橀粯璁ゅ弻琛岀矖浣撱€?            - **鍙充笂瑙掑畼鏂规爣璇?*锛氬交搴曞共鎺?S-beta 灏忕數瑙嗭紝鏇挎崲涓哄畼鏂规爣鍑嗙殑 `鈻?YouTube` 绾㈢櫧澶ф爣銆?            - **娌夋蹈搴曡壊**锛氬叏鐣岄潰閿佸畾 `#0F0F0F` 瀹樻柟鏋佺畝娣遍粦銆?          files: ${{ steps.prepare_apk.outputs.final_path }}
+            ## YouTube TV Official 1:1 Reconstructed Edition
+            - 3.5dp Solid White Focus Outline + 16dp rounded corners
+            - 72dp Icon-Only Sidebar Rail
+            - 16:9 Aspect Ratio Video Cards (260x146dp) with 2-line titles
+            - Official YouTube TV red/white logo
+            - Deep #0F0F0F background
+          files: ${{ steps.prepare_apk.outputs.final_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

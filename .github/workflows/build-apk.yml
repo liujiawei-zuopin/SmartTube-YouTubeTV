@@ -12,31 +12,31 @@ permissions:
 
 jobs:
   build:
-    name: 编译专属 YouTube TV 官方高仿版 (1:1 最大化还原)
+    name: 缂栬瘧涓撳睘 YouTube TV 瀹樻柟楂樹豢鐗?(1:1 鏈€澶у寲杩樺師)
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
-      - name: 检出 SmartTube 源码
+      - name: 妫€鍑?SmartTube 婧愮爜
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: recursive
 
-      - name: 配置 JDK 17
+      - name: 閰嶇疆 JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: 🎨 深度重塑为官方 YouTube TV 1:1 界面
+      - name: 馃帹 娣卞害閲嶅涓哄畼鏂?YouTube TV 1:1 鐣岄潰
         run: |
-          echo "=== 1. 应用名称与标识变更为 YouTube ==="
+          echo "=== 1. 搴旂敤鍚嶇О涓庢爣璇嗗彉鏇翠负 YouTube ==="
           find . -name "strings.xml" -exec sed -i 's/SmartTube beta/YouTube/g' {} +
           find . -name "strings.xml" -exec sed -i 's/SmartTube/YouTube/g' {} +
 
-          echo "=== 2. 重写颜色系统为官方极致深黑 (#0F0F0F) ==="
+          echo "=== 2. 閲嶅啓棰滆壊绯荤粺涓哄畼鏂规瀬鑷存繁榛?(#0F0F0F) ==="
           find . -name "colors.xml" | while read -r f; do
             sed -i 's/<color name="fastlane_background">.*<\/color>/<color name="fastlane_background">#0F0F0F<\/color>/g' "$f"
             sed -i 's/<color name="fastlane_background_dark">.*<\/color>/<color name="fastlane_background_dark">#0F0F0F<\/color>/g' "$f"
@@ -50,20 +50,23 @@ jobs:
             sed -i 's/<color name="card_selected_background_white_grey">.*<\/color>/<color name="card_selected_background_white_grey">#FFFFFF<\/color>/g' "$f"
           done
 
-          echo "=== 3. 布局重构: 侧边栏紧凑图标化 (72dp) + 16:9 大卡片 + 16dp圆角 ==="
+          echo "=== 3. 甯冨眬閲嶆瀯: 渚ц竟鏍忕揣鍑戝浘鏍囧寲 (72dp) + 16:9 澶у崱鐗?+ 16dp鍦嗚 ==="
           cat << 'EOF' >> smarttubetv/src/main/res/values/dimens.xml
           <resources>
+              <!-- 瀹樻柟鏋佺獎鍥炬爣瀵艰埅鍒?(Icon Rail) -->
               <dimen name="lb_browse_headers_width">72dp</dimen>
               <dimen name="lb_browse_rows_margin_start">88dp</dimen>
               <dimen name="lb_browse_rows_margin_top">115dp</dimen>
+              <!-- 瀹樻柟 16:9 澶у昂瀵歌棰戝崱鐗?-->
               <dimen name="card_width">260dp</dimen>
               <dimen name="card_height">146dp</dimen>
+              <!-- 瀹樻柟 16dp 澶у渾瑙?-->
               <dimen name="lb_rounded_rect_corner_radius">16dp</dimen>
               <dimen name="card_corner_radius">16dp</dimen>
           </resources>
           EOF
 
-          echo "=== 4. 核心焦点动效: 注入官方 3.5dp 白色聚焦边框 (White Focus Border) ==="
+          echo "=== 4. 鏍稿績鐒︾偣鍔ㄦ晥: 娉ㄥ叆瀹樻柟 3.5dp 鐧借壊鑱氱劍杈规 (White Focus Border) ==="
           cat << 'EOF' > smarttubetv/src/main/res/drawable/card_selected_stroke.xml
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android"
@@ -79,7 +82,7 @@ jobs:
           sed -i 's/@color\/card_selected_background_white/@drawable\/card_selected_stroke/g' smarttubetv/src/main/res/values/styles.xml
           sed -i 's/@color\/card_selected_background_white_grey/@drawable\/card_selected_stroke/g' smarttubetv/src/main/res/values/styles.xml
 
-          echo "=== 5. 自动安装工具并生成官方标准的 ▶ YouTube 品牌大标与图标 ==="
+          echo "=== 5. 瀹夎 ImageMagick 骞剁敓鎴愬畼鏂规爣鍑嗙殑 鈻?YouTube 鍝佺墝澶ф爣涓庡浘鏍?==="
           sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
           CONVERT_CMD=$(command -v convert || command -v magick)
 
@@ -109,12 +112,12 @@ jobs:
               -fill white -draw 'polygon 76,61 76,131 136,96' "$p" || true
           done
 
-          echo "=== 6. 默认标题显示 2 行 (与官方对齐) ==="
+          echo "=== 6. 榛樿鏍囬鏄剧ず 2 琛?(涓庡畼鏂瑰榻? ==="
           find . -name "MainUIData.java" -exec sed -i 's/mCardTitleLinesNum = Helpers.parseInt(split, 7, 1);/mCardTitleLinesNum = Helpers.parseInt(split, 7, 2);/g' {} +
 
-          echo "✅ 官方 1:1 UI 定制注入完成！"
+          echo "鉁?瀹樻柟 1:1 UI 瀹氬埗娉ㄥ叆瀹屾垚锛?
 
-      - name: 🔑 自动签名配置
+      - name: 馃攽 鑷姩绛惧悕閰嶇疆
         run: |
           keytool -genkey -v \
             -keystore key.jks \
@@ -131,14 +134,13 @@ jobs:
           echo "keyPassword=123456" >> keystore.properties
           echo "storeFile=${GITHUB_WORKSPACE}/key.jks" >> keystore.properties
 
-      - name: 赋予执行权限
+      - name: 璧嬩簣鎵ц鏉冮檺
         run: chmod +x ./gradlew
 
-      - name: 🚀 编译生产包
-        run: |
+      - name: 馃殌 缂栬瘧鐢熶骇鍖?        run: |
           ./gradlew clean assembleStbetaRelease --no-daemon --stacktrace || ./gradlew clean assembleRelease --no-daemon --stacktrace
 
-      - name: 收集输出文件
+      - name: 鏀堕泦杈撳嚭鏂囦欢
         id: prepare_apk
         run: |
           APK_PATH=$(find smarttubetv/build/outputs/apk -name "*.apk" | head -n 1)
@@ -151,18 +153,13 @@ jobs:
           echo "final_path=./$FINAL_NAME" >> $GITHUB_OUTPUT
           echo "release_tag=v${DATE_TAG}" >> $GITHUB_OUTPUT
 
-      - name: 📦 发布到 Releases (一键下载)
+      - name: 馃摝 鍙戝竷鍒?Releases (涓€閿笅杞?
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.prepare_apk.outputs.release_tag }}
-          name: 官方 YouTube 电视版 1比1 还原定制版 ${{ steps.prepare_apk.outputs.release_tag }}
+          name: 瀹樻柟 YouTube 鐢佃鐗?1姣? 杩樺師瀹氬埗鐗?${{ steps.prepare_apk.outputs.release_tag }}
           body: |
-            ## 📺 官方 YouTube 电视版 1:1 最大化还原版
-            - **白色圆角高亮边框**：选中卡片 3.5dp 纯白圆角描边 + 16dp 大圆角
-            - **极窄纯图标侧边栏**：左侧 72dp 极窄图标 Rail 模式
-            - **16:9 大卡片**：260dp x 146dp，默认双行粗体标题
-            - **右上角官方标识**：官方 ▶ YouTube 红白大标
-            - **沉浸底色**：全界面锁定 #0F0F0F 官方极简深黑
-          files: ${{ steps.prepare_apk.outputs.final_path }}
+            ## 馃摵 瀹樻柟 YouTube 鐢佃鐗?1:1 鏈€澶у寲杩樺師鐗?
+            ### 馃幆 渚濈収瀹樻柟 TV 瀹炴祴鎴浘娣卞害閲嶆瀯锛?            - **鐧借壊鍦嗚楂樹寒杈规**锛氶€変腑鍗＄墖甯︽湁鏍囧噯鐨?**3.5dp 绾櫧鍦嗚鎻忚竟** 涓?16dp 澶у渾瑙掋€?            - **鏋佺獎绾浘鏍囦晶杈规爮**锛氬乏渚у帇缂╀负 72dp 绾浘鏍?Rail 妯″紡锛屽唴瀹硅捣濮嬪乏绉诲榻愩€?            - **16:9 褰遍櫌绾уぇ鍗＄墖**锛氬崱鐗囨瘮渚嬭皟鏁翠负 260dp x 146dp锛屾爣棰橀粯璁ゅ弻琛岀矖浣撱€?            - **鍙充笂瑙掑畼鏂规爣璇?*锛氬交搴曞共鎺?S-beta 灏忕數瑙嗭紝鏇挎崲涓哄畼鏂规爣鍑嗙殑 `鈻?YouTube` 绾㈢櫧澶ф爣銆?            - **娌夋蹈搴曡壊**锛氬叏鐣岄潰閿佸畾 `#0F0F0F` 瀹樻柟鏋佺畝娣遍粦銆?          files: ${{ steps.prepare_apk.outputs.final_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

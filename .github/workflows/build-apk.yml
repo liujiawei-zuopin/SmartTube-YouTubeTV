@@ -33,67 +33,27 @@ jobs:
       - name: 🎨 应用 YouTube TV 官方视觉定制 (Scheme A)
         run: |
           echo "=== 1. 修改应用名称为 YouTube ==="
-          sed -i 's/<string translatable="false" name="app_name"><!\[CDATA\[SmartTube\]\]><\/string>/<string translatable="false" name="app_name"><![CDATA[YouTube]]><\/string>/g' smarttubetv/src/main/res/values/strings.xml
-          sed -i 's/<string translatable="false" name="browse_title"><!\[CDATA\[SmartTube\]\]><\/string>/<string translatable="false" name="browse_title"><![CDATA[YouTube]]><\/string>/g' smarttubetv/src/main/res/values/strings.xml
+          sed -i 's/<string translatable="false" name="app_name">.*<\/string>/<string translatable="false" name="app_name"><![CDATA[YouTube]]><\/string>/g' smarttubetv/src/main/res/values/strings.xml
+          sed -i 's/<string translatable="false" name="browse_title">.*<\/string>/<string translatable="false" name="browse_title"><![CDATA[YouTube]]><\/string>/g' smarttubetv/src/main/res/values/strings.xml
 
-          echo "=== 2. 定制专属独立包名 (与原版/官方并存) ==="
-          sed -i 's/applicationId "app.smarttube"/applicationId "com.google.android.youtube.tv.custom"/g' smarttubetv/build.gradle
+          echo "=== 2. 注入官方 YouTube TV 纯黑配色 (#0F0F0F) ==="
+          sed -i 's/<color name="fastlane_background">.*<\/color>/<color name="fastlane_background">#0F0F0F<\/color>/g' smarttubetv/src/main/res/values/colors.xml
+          sed -i 's/<color name="fastlane_background_dark">.*<\/color>/<color name="fastlane_background_dark">#0F0F0F<\/color>/g' smarttubetv/src/main/res/values/colors.xml
+          sed -i 's/<color name="default_background_gradient_start">.*<\/color>/<color name="default_background_gradient_start">#0F0F0F<\/color>/g' smarttubetv/src/main/res/values/colors.xml
+          sed -i 's/<color name="default_background_gradient_end">.*<\/color>/<color name="default_background_gradient_end">#0F0F0F<\/color>/g' smarttubetv/src/main/res/values/colors.xml
+          sed -i 's/<color name="search_opaque">.*<\/color>/<color name="search_opaque">#FF0000<\/color>/g' smarttubetv/src/main/res/values/colors.xml
 
-          echo "=== 3. 注入官方 YouTube TV 纯黑配色 (#0F0F0F) ==="
-          cat << 'EOF' > smarttubetv/src/main/res/values/colors_override.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="fastlane_background">#0F0F0F</color>
-              <color name="fastlane_background_dark">#0F0F0F</color>
-              <color name="default_background_gradient_start">#0F0F0F</color>
-              <color name="default_background_gradient_end">#0F0F0F</color>
-              <color name="default_light_grey">#1F1F1F</color>
-              <color name="search_opaque">#FF0000</color>
-              <color name="search_opaque_yellow">#FF0000</color>
-              <color name="lb_control_button_color">#E8FFFFFF</color>
-              <color name="card_selected_background_white">#FFFFFF</color>
-              <color name="card_selected_background_white_grey">#272727</color>
-          </resources>
-          EOF
+          echo "=== 3. 自动生成官方红白 TV 海报与应用图标 ==="
+          find smarttubetv/src/main/res -name "app_banner.png" | while read -r f; do
+            convert -size 640x360 xc:'#0F0F0F' -fill '#FF0000' -draw 'roundrectangle 270,145 370,215 16,16' -fill white -draw 'polygon 308,165 308,195 338,180' "$f" || true
+          done
 
-          echo "=== 4. 生成官方 YouTube TV 矢量图标与 Leanback Banner ==="
-          python3 - << 'PYEOF'
-          import os
-          from PIL import Image, ImageDraw
+          find smarttubetv/src/main/res -name "app_icon.png" -o -name "app_logo.png" | while read -r f; do
+            convert -size 192x192 xc:none -fill '#FF0000' -draw 'roundrectangle 10,10 182,182 40,40' -fill white -draw 'polygon 76,61 76,131 136,96' "$f" || true
+          done
+          echo "官方视觉素材替换成功！"
 
-          def create_youtube_banner(path, width=320, height=180):
-              os.makedirs(os.path.dirname(path), exist_ok=True)
-              img = Image.new('RGBA', (width, height), (15, 15, 15, 255))
-              draw = ImageDraw.Draw(img)
-              bx0, by0, bx1, by1 = width//2 - 50, height//2 - 35, width//2 + 50, height//2 + 35
-              draw.rounded_rectangle([bx0, by0, bx1, by1], radius=16, fill=(255, 0, 0, 255))
-              tx0, ty0 = bx0 + 38, by0 + 20
-              tx1, ty1 = bx0 + 38, by0 + 50
-              tx2, ty2 = bx0 + 68, by0 + 35
-              draw.polygon([(tx0, ty0), (tx1, ty1), (tx2, ty2)], fill=(255, 255, 255, 255))
-              img.save(path)
-
-          def create_youtube_icon(path, size=192):
-              os.makedirs(os.path.dirname(path), exist_ok=True)
-              img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-              draw = ImageDraw.Draw(img)
-              draw.rounded_rectangle([10, 10, size - 10, size - 10], radius=size//4, fill=(255, 0, 0, 255))
-              tx0, ty0 = size//2 - 20, size//2 - 35
-              tx1, ty1 = size//2 - 20, size//2 + 35
-              tx2, ty2 = size//2 + 35, size//2
-              draw.polygon([(tx0, ty0), (tx1, ty1), (tx2, ty2)], fill=(255, 255, 255, 255))
-              img.save(path)
-
-          for root, dirs, files in os.walk('smarttubetv/src/main/res'):
-              for f in files:
-                  if f == 'app_banner.png':
-                      create_youtube_banner(os.path.join(root, f), 640, 360)
-                  elif f in ['app_icon.png', 'app_logo.png']:
-                      create_youtube_icon(os.path.join(root, f), 192)
-          print("官方视觉素材替换完成！")
-          PYEOF
-
-      - name: 🔑 自动配置发布证书与签名 (免手动生成 Keystore)
+      - name: 🔑 自动配置发布证书与签名
         run: |
           keytool -genkey -v \
             -keystore key.jks \
@@ -115,7 +75,7 @@ jobs:
 
       - name: 🚀 编译 Release 生产安装包
         run: |
-          ./gradlew clean assembleStbetaRelease --no-daemon --stacktrace || ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew clean assembleStbetaRelease --no-daemon --stacktrace || ./gradlew clean assembleRelease --no-daemon --stacktrace
 
       - name: 整理并重命名 APK
         id: prepare_apk
@@ -124,6 +84,8 @@ jobs:
           if [ -z "$APK_PATH" ]; then
             APK_PATH=$(find . -name "*.apk" | head -n 1)
           fi
+          echo "Found APK: $APK_PATH"
+
           DATE_TAG=$(date +"%Y%m%d_%H%M")
           FINAL_NAME="YouTube-TV-OfficialUI-v${DATE_TAG}.apk"
           cp "$APK_PATH" "./$FINAL_NAME"
@@ -147,7 +109,6 @@ jobs:
             - **官方视觉**：背景全面采用 YouTube TV 标志性深黑配色（#0F0F0F）
             - **品牌外观**：应用名称正式显示为 **YouTube**，含官方 TV 宽屏海报与方形图标
             - **功能保留**：免广告拦截 + SponsorBlock 自动跳过 + 4K 解码
-            - **独立包名**：与官方版及原版 SmartTube 无冲突共存
           files: ${{ steps.prepare_apk.outputs.final_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -50,15 +50,13 @@ jobs:
             sed -i 's/<color name="card_selected_background_white_grey">.*<\/color>/<color name="card_selected_background_white_grey">#FFFFFF<\/color>/g' "$f"
           done
 
-          echo "=== 3. Restructure layout in-place (No duplicate XML keys) ==="
-          # Replace existing dimensions in-place
+          echo "=== 3. Restructure layout in-place ==="
           sed -i 's/<dimen name="lb_browse_rows_margin_start">.*<\/dimen>/<dimen name="lb_browse_rows_margin_start">88dp<\/dimen>/g' smarttubetv/src/main/res/values/dimens.xml
           sed -i 's/<dimen name="lb_browse_rows_margin_top">.*<\/dimen>/<dimen name="lb_browse_rows_margin_top">115dp<\/dimen>/g' smarttubetv/src/main/res/values/dimens.xml
           sed -i 's/<dimen name="card_width">.*<\/dimen>/<dimen name="card_width">260dp<\/dimen>/g' smarttubetv/src/main/res/values/dimens.xml
           sed -i 's/<dimen name="card_height">.*<\/dimen>/<dimen name="card_height">146dp<\/dimen>/g' smarttubetv/src/main/res/values/dimens.xml
           sed -i 's/<dimen name="lb_rounded_rect_corner_radius">.*<\/dimen>/<dimen name="lb_rounded_rect_corner_radius">16dp<\/dimen>/g' smarttubetv/src/main/res/values/dimens.xml
 
-          # Add only new dimensions before closing tag
           sed -i 's/<\/resources>/    <dimen name="lb_browse_headers_width">72dp<\/dimen>\n    <dimen name="card_corner_radius">16dp<\/dimen>\n<\/resources>/g' smarttubetv/src/main/res/values/dimens.xml
 
           echo "=== 4. Inject 3.5dp Solid White Focus Border ==="
@@ -74,8 +72,11 @@ jobs:
           </shape>
           EOF
 
-          sed -i 's/@color\/card_selected_background_white/@drawable\/card_selected_stroke/g' smarttubetv/src/main/res/values/styles.xml
-          sed -i 's/@color\/card_selected_background_white_grey/@drawable\/card_selected_stroke/g' smarttubetv/src/main/res/values/styles.xml
+          # Fallback copy to ensure AAPT resolution
+          cp smarttubetv/src/main/res/drawable/card_selected_stroke.xml smarttubetv/src/main/res/drawable/card_selected_stroke_grey.xml || true
+
+          # Precise in-place replacement
+          sed -i 's/<item name="cardSelectedBackground">.*<\/item>/<item name="cardSelectedBackground">@drawable\/card_selected_stroke<\/item>/g' smarttubetv/src/main/res/values/styles.xml
 
           echo "=== 5. Install ImageMagick and generate Official YouTube branding ==="
           sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
